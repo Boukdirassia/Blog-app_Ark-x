@@ -3,7 +3,7 @@
 function requestLogger(req, res, next) {
     try {
         const date = new Date();
-        console.log(`Dans ${date} : Cette requête contient la méthode ${req.method} et l'URL ${req.url}`);
+        console.log(`Dans ${date} : Cette requête contient la méthode ${req.method} et l'URL http://localhost:3000${req.url}`);
         next();
     } catch (error) {
         console.error({ message: error.message });
