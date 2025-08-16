@@ -3,10 +3,17 @@ const PostModel = require("../models/post-model");
 const getPosts = async (req, res) => {
   try {
     const posts = await PostModel.find({});
-    res.json(posts);
+    res.status(200).json(posts);
   } catch (error) {
     console.error(error.message);
     res.status(500).send(error.message);
   }
 };
+const updatePost = async(req,res)=>{
+  try{
+    //PostModel.up
+  }catch(error){
+
+  }
+}
 module.exports= getPosts;
