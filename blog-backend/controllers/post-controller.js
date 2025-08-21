@@ -3,37 +3,28 @@ const PostModel = require("../models/post-model");
 // Renvoie la liste complète des posts stockés dans MongoDB
 const getPosts = async (req, res) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
-    const q = req.query.q || '';
-    const sort = req.query.sort || 'createdAt';
-    const order = req.query.order === 'desc' ? -1 : 1;
-
-    const posts = await PostModel.find({
-      $or: [
-        { title: { $regex: q, $options: 'i' } },
-        { content: { $regex: q, $options: 'i' } }
-      ]
-    })
-      .sort({ [sort]: order })
-      .skip((page - 1) * limit)
-      .limit(limit);
-
+    const posts = await PostModel.find(); 
     res.status(200).json(posts);
   } catch (error) {
-    res.status(500).send(error.message);
+    next(error); 
   }
 };
+
 
 
 // Cette handler function permet de récupérer un post identifié par son id
 const getPostById = async (req, res) => {
   try {
-    const id = Number(req.params.id); // conversion en nombre si _id est numérique
-    const post = await PostModel.findOne({ _id: id }, { '_id': 0 });
+    const id = Number(req.params.id); 
+    const post = await PostModel.findById({ _id: id });
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found !' });
+    }
+    
     res.status(200).json(post);
   } catch (error) {
-    res.status(404).json({ message: 'Post not found !' });
+    next(error); 
   }
 };
 
@@ -62,7 +53,7 @@ const createNewPost = async (req, res) => {
 
     res.status(201).json(newPost);
   } catch (error) {
-    res.status(400).send({ error: error.message });
+    next(error); 
   }
 };
 
@@ -70,11 +61,10 @@ const createNewPost = async (req, res) => {
 const updatePost = async (req, res) => {
   try {
     const id = Number(req.params.id); // conversion en nombre si _id est numérique
-    const { title, content, author, tags } = req.body;
+    const { title, content, author, tags } = req.body || {};
 
-    // Mise à jour du post et retour du document mis à jour
-    const updatedPost = await PostModel.findByIdAndUpdate(
-      id,
+    const updatedPost = await PostModel.findOneAndUpdate(
+      { _id: id },
       {
         title,
         content,
@@ -91,7 +81,7 @@ const updatePost = async (req, res) => {
 
     res.status(200).json(updatedPost);
   } catch (error) {
-    res.status(404).json({ error: error.message });
+    next(error); 
   }
 };
 
@@ -101,7 +91,7 @@ const deletePost = async (req, res) => {
     const id = Number(req.params.id); // conversion en nombre si _id est numérique
 
     // Suppression du post par son _id
-    const postDeleted = await PostModel.findByIdAndDelete(id);
+    const postDeleted = await PostModel.findOneAndDelete({ _id: id });
 
     if (!postDeleted) {
       return res.status(404).json({ message: "Post doesn't exist to delete it" });
@@ -110,7 +100,7 @@ const deletePost = async (req, res) => {
     // 200 OK avec message car 204 ne permet pas d'envoyer de texte
     res.status(200).send('Post Deleted !');
   } catch (error) {
-    res.status(404).send({ message: error.message });
+    next(error); 
   }
 };
 
