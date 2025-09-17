@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import postsAPI from '../services/api';
+import api, { createPost } from '../services/api';
 import PostForm from '../components/PostForm';
 import { useNotification } from '../context/NotificationContext';
 
@@ -15,7 +15,7 @@ const AddPost = () => {
     setError(null);
     
     try {
-      const newPost = await postsAPI.createPost(formData);
+      const newPost = await createPost(formData);
       showSuccess('Article créé avec succès!');
       navigate('/');
     } catch (err) {

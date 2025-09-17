@@ -17,6 +17,11 @@ const postSchema = new mongoose.Schema({
     type: String, 
     required: [true, "L'auteur est obligatoire"]
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, "L'utilisateur est obligatoire"]
+  },
   tags: { 
     type: [String], 
     required: [true, "Les tags sont obligatoires"],
@@ -25,6 +30,10 @@ const postSchema = new mongoose.Schema({
         return arr.length > 0; 
       }
     }
+  },
+  image: {
+    type: String,
+    default: null
   },
   createdAt: Date,
   updatedAt:Date

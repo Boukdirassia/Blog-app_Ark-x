@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const PostForm = ({ post, onSubmit, isLoading }) => {
   const [formData, setFormData] = useState({
@@ -7,6 +7,9 @@ const PostForm = ({ post, onSubmit, isLoading }) => {
     author: '',
     tags: ''
   });
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
   const [errors, setErrors] = useState({});
 
   // If post is provided, populate form for editing
@@ -18,6 +21,13 @@ const PostForm = ({ post, onSubmit, isLoading }) => {
         author: post.author || '',
         tags: post.tags ? post.tags.join(', ') : ''
       });
+      
+      // Set image preview if post has an image
+      if (post.image) {
+        setImagePreview(`http://localhost:5000${post.image}`);
+      } else {
+        setImagePreview(null);
+      }
     }
   }, [post]);
 
@@ -47,19 +57,54 @@ const PostForm = ({ post, onSubmit, isLoading }) => {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (validate()) {
-      // Convert tags string to array
-      const processedData = {
-        ...formData,
-        tags: formData.tags
-          ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-          : []
-      };
+      // Create FormData object for multipart/form-data (needed for file upload)
+      const formDataObj = new FormData();
       
-      onSubmit(processedData);
+      // Add text fields
+      formDataObj.append('title', formData.title);
+      formDataObj.append('content', formData.content);
+      formDataObj.append('author', formData.author);
+      
+      // Process tags
+      const tagsArray = formData.tags
+        ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+        : [];
+      
+      // Add tags as JSON string (backend will parse it)
+      formDataObj.append('tags', JSON.stringify(tagsArray));
+      
+      // Add image if selected
+      if (selectedImage) {
+        formDataObj.append('image', selectedImage);
+      }
+      
+      onSubmit(formDataObj);
     }
   };
 
@@ -123,6 +168,40 @@ const PostForm = ({ post, onSubmit, isLoading }) => {
           placeholder="technologie, actualité, lifestyle"
           disabled={isLoading}
         />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="image" className="form-label">Image</label>
+        <input
+          type="file"
+          id="image"
+          name="image"
+          className="form-input"
+          onChange={handleImageChange}
+          accept="image/*"
+          disabled={isLoading}
+          ref={fileInputRef}
+        />
+        
+        {imagePreview && (
+          <div className="image-preview-container">
+            <img 
+              src={imagePreview} 
+              alt="Aperçu" 
+              className="image-preview" 
+              style={{ maxWidth: '100%', maxHeight: '200px', marginTop: '10px' }} 
+            />
+            <button 
+              type="button" 
+              onClick={removeImage} 
+              className="btn btn-danger" 
+              style={{ marginTop: '5px' }}
+              disabled={isLoading}
+            >
+              Supprimer l'image
+            </button>
+          </div>
+        )}
       </div>
       
       <button 

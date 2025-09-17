@@ -1,15 +1,22 @@
 import { Link } from 'react-router-dom';
-import { Calendar, User, ArrowRight, Edit2, Tag, Clock, Heart, MessageCircle, Eye, Bookmark, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, User, ArrowRight, Edit2, Tag, Clock, Heart, MessageCircle, Eye, Bookmark, Trash2, Share, MoreHorizontal, ThumbsUp, Smile } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import '../styles/post-card.css';
-import postsAPI from '../services/api';
+import api, { toggleLike, toggleBookmark, deletePost } from '../services/api';
 import { useNotification } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import LikeButton from './LikeButton';
+import BookmarkButton from './BookmarkButton';
 
 const PostCard = ({ post, onDelete }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.stats?.likes || 0);
+  const [commentsCount, setCommentsCount] = useState(post.stats?.comments || 0);
+  const [userLiked, setUserLiked] = useState(post.stats?.userLiked || false);
+  const [userBookmarked, setUserBookmarked] = useState(post.stats?.userBookmarked || false);
   const { showSuccess, showError } = useNotification();
+  const { isAuthenticated, user } = useAuth();
   
   // Format date to a readable format
   const formatDate = (dateString) => {
@@ -28,7 +35,7 @@ const PostCard = ({ post, onDelete }) => {
     
     setIsDeleting(true);
     try {
-      await postsAPI.deletePost(post._id);
+      await deletePost(post._id);
       showSuccess('Article supprimé avec succès!');
       if (onDelete) {
         onDelete(post._id);
@@ -40,6 +47,22 @@ const PostCard = ({ post, onDelete }) => {
       setIsDeleting(false);
     }
   };
+  
+  // Gérer la mise à jour des likes
+  const handleLikeUpdate = (liked, count) => {
+    setUserLiked(liked);
+    setLikesCount(count);
+  };
+  
+  // Gérer la mise à jour des bookmarks
+  const handleBookmarkUpdate = (bookmarked) => {
+    setUserBookmarked(bookmarked);
+  };
+  
+  // Vérifier si l'utilisateur est le propriétaire du post
+  const isPostOwner = () => {
+    return user && post.userId && user._id === post.userId._id;
+  };
 
   // Truncate content for preview
   const truncateContent = (content, maxLength = 120) => {
@@ -48,65 +71,92 @@ const PostCard = ({ post, onDelete }) => {
   };
 
   return (
-    <article 
-      className={`modern-post-card ${isHovered ? 'hovered' : ''}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <article className="blog-post-card">
       <div className="post-card-header">
         <div className="post-author-info">
           <div className="author-avatar">
-            <User size={16} />
+            <User size={20} />
           </div>
           <div className="author-details">
-            <span className="author-name">{post.author}</span>
-            <span className="post-date">{formatDate(post.createdAt)}</span>
+            <span className="author-name">{post.userId ? post.userId.username : 'Utilisateur inconnu'}</span>
+            <div className="post-meta-info">
+              <span className="post-date">{formatDate(post.createdAt)}</span>
+              <span className="post-visibility">• Public</span>
+            </div>
           </div>
         </div>
-        <button 
-          className={`bookmark-btn ${isBookmarked ? 'bookmarked' : ''}`}
-          onClick={() => setIsBookmarked(!isBookmarked)}
-        >
-          <Bookmark size={18} />
-        </button>
+        <div className="post-header-actions">
+          <BookmarkButton 
+            postId={post._id}
+            initialBookmarked={userBookmarked}
+            onBookmarkUpdate={handleBookmarkUpdate}
+          />
+          <button className="post-action-btn more-options-btn">
+            <MoreHorizontal size={20} />
+          </button>
+        </div>
       </div>
 
-      {post.imageUrl && (
+      <div className="post-content">
+        <p className="post-text">{post.title}</p>
+        <p className="post-excerpt">{truncateContent(post.content)}</p>
+        
+        {post.tags && post.tags.length > 0 && (
+          <div className="post-tags">
+            {post.tags.map((tag, index) => (
+              <span key={index} className="post-tag">#{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {post.image && (
         <div className="post-image-container">
           <img 
-            src={post.imageUrl} 
+            src={`http://localhost:5000${post.image}`} 
             alt={post.title} 
             className="post-image"
             loading="lazy"
           />
-          <div className="image-overlay"></div>
         </div>
       )}
 
-      <div className="post-content">
-        <div className="post-tags">
-          {post.tags && post.tags.slice(0, 2).map((tag, index) => (
-            <span key={index} className="post-tag">{tag}</span>
-          ))}
+      <div className="post-engagement-stats">
+        <div className="engagement-left">
+          <div className="reaction-icons">
+            <span className="reaction-icon like-icon"><ThumbsUp size={14} /></span>
+          </div>
+          <span className="like-count">{likesCount}</span>
         </div>
-
-        <h2 className="post-title">
-          <Link to={`/posts/${post._id}`}>{post.title}</Link>
-        </h2>
-        
-        <p className="post-excerpt">{truncateContent(post.content)}</p>
-
+        <div className="engagement-right">
+          <span className="comment-count">{commentsCount} commentaires</span>
+          <span className="view-count"><Eye size={14} /> {post.stats?.views || 0} vues</span>
+        </div>
       </div>
 
-      <div className="post-footer">
-        <div className="post-actions">
-          <Link to={`/posts/${post._id}`} className="read-more-btn">
-            <span>Lire</span>
-            <ArrowRight size={16} className="arrow-icon" />
-          </Link>
-          
+      <div className="post-action-buttons">
+        <LikeButton 
+          postId={post._id}
+          initialLikes={likesCount}
+          initialUserLiked={userLiked}
+          onLikeUpdate={handleLikeUpdate}
+          className="post-action-btn"
+        />
+        <Link to={`/posts/${post._id}`} className="post-action-btn comment-btn">
+          <MessageCircle size={20} />
+          <span>Commenter</span>
+        </Link>
+        <button className="post-action-btn share-btn">
+          <Share size={20} />
+          <span>Partager</span>
+        </button>
+      </div>
+      
+      {isPostOwner() && (
+        <div className="owner-actions">
           <Link to={`/edit-post/${post._id}`} className="edit-btn" aria-label="Modifier">
             <Edit2 size={16} />
+            <span>Modifier</span>
           </Link>
           
           <button 
@@ -116,9 +166,10 @@ const PostCard = ({ post, onDelete }) => {
             disabled={isDeleting}
           >
             <Trash2 size={16} />
+            <span>Supprimer</span>
           </button>
         </div>
-      </div>
+      )}
     </article>
   );
 };

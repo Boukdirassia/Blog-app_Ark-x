@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, X, Calendar, ArrowUpDown, AlertCircle, BookOpen, Clock, TrendingUp, Users, Star, Zap, ArrowRight, PenTool, Eye, Heart, MessageCircle, Sparkles, Award, Target, Share2, Edit, Trash2 } from 'lucide-react';
-import postsAPI, { getPosts } from '../services/api';
+import api, { getPosts, deletePost } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import '../styles/home.css';
 
 const Home = () => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,7 +35,7 @@ const Home = () => {
     }
     
     try {
-      await postsAPI.deletePost(postId);
+      await deletePost(postId);
       // Refresh posts after deletion
       fetchPosts();
     } catch (err) {
@@ -48,16 +50,22 @@ const Home = () => {
     setError(null);
     
     try {
-      const data = await postsAPI.getPosts();
+      const response = await getPosts();
+      
+      // Extract posts from the response structure
+      const data = response.data?.data || response.data || [];
+      
+      // Ensure data is an array
+      const postsArray = Array.isArray(data) ? data : [];
       
       // Filter posts based on search query and category
-      let filteredPosts = data;
+      let filteredPosts = postsArray;
       
       // Apply category filter
       if (selectedCategory !== 'all') {
         filteredPosts = filteredPosts.filter(post => 
-          post.tags && post.tags.some(tag => 
-            tag.toLowerCase() === selectedCategory.toLowerCase()
+          post && post.tags && Array.isArray(post.tags) && post.tags.some(tag => 
+            tag && typeof tag === 'string' && tag.toLowerCase() === selectedCategory.toLowerCase()
           )
         );
       }
@@ -65,15 +73,24 @@ const Home = () => {
       // Apply search filter
       if (searchQuery) {
         filteredPosts = filteredPosts.filter(post => 
-          post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (post.tags && post.tags.some(tag => 
-            tag.toLowerCase().includes(searchQuery.toLowerCase())
+          (post.title && post.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (post.content && post.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (post.tags && Array.isArray(post.tags) && post.tags.some(tag => 
+            tag && tag.toLowerCase().includes(searchQuery.toLowerCase())
           ))
         );
       }
       
-      // Sort posts
+      // Ensure filteredPosts is always an array before sorting
+      if (!Array.isArray(filteredPosts)) {
+        console.error('filteredPosts is not an array:', filteredPosts);
+        filteredPosts = [];
+        return; // Exit function early if we don't have valid data
+      }
+      
+      // Additional check to ensure all posts have the required fields
+      filteredPosts = filteredPosts.filter(post => post && typeof post === 'object');
+      
       filteredPosts.sort((a, b) => {
         let aValue = a[sortField];
         let bValue = b[sortField];
@@ -160,7 +177,7 @@ const Home = () => {
         excerpt: post.content ? post.content.substring(0, 120) + '...' : post.excerpt || "Découvrez cet article passionnant...",
         author: post.author || "Auteur",
         category: post.tags && post.tags[0] ? post.tags[0] : "Article",
-        image: post.image || "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop"
+        image: post.image ? `http://localhost:5000${post.image}` : "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop"
       }));
     }
     
@@ -215,13 +232,47 @@ const Home = () => {
     
     setLoadingMore(true);
     try {
-      const data = await postsAPI.getPosts();
-      // Simulate loading more posts (in real app, this would be paginated)
-      const newPosts = data.slice(posts.length, posts.length + postsPerPage);
+      // Use pagination parameters
+      const page = Math.floor(posts.length / postsPerPage) + 1;
+      const response = await getPosts({
+        page,
+        limit: postsPerPage,
+        sort: sortField,
+        order: sortOrder
+      });
       
-      if (newPosts.length === 0) {
+      // Extract posts from the response structure
+      const data = response.data?.data || response.data || [];
+      
+      // Ensure data is an array
+      const postsArray = Array.isArray(data) ? data : [];
+      
+      if (postsArray.length === 0) {
         setHasMorePosts(false);
       } else {
+        // Apply the same filters as in fetchPosts
+        let newPosts = postsArray;
+        
+        // Apply category filter
+        if (selectedCategory !== 'all') {
+          newPosts = newPosts.filter(post => 
+            post && post.tags && Array.isArray(post.tags) && post.tags.some(tag => 
+              tag && typeof tag === 'string' && tag.toLowerCase() === selectedCategory.toLowerCase()
+            )
+          );
+        }
+        
+        // Apply search filter
+        if (searchQuery) {
+          newPosts = newPosts.filter(post => 
+            (post.title && post.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (post.content && post.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (post.tags && Array.isArray(post.tags) && post.tags.some(tag => 
+              tag && tag.toLowerCase().includes(searchQuery.toLowerCase())
+            ))
+          );
+        }
+        
         setPosts(prev => [...prev, ...newPosts]);
       }
     } catch (error) {
@@ -756,7 +807,7 @@ const Home = () => {
                 >
                   <div className="card-image-container">
                     <img 
-                      src={`https://picsum.photos/400/250?random=${post._id}`} 
+                      src={post.image ? `http://localhost:5000${post.image}` : `https://picsum.photos/400/250?random=${post._id}`} 
                       alt={post.title}
                       className="card-image"
                     />
@@ -804,18 +855,20 @@ const Home = () => {
                         Lire l'article
                         <ArrowRight size={16} />
                       </Link>
-                      <div className="card-quick-actions">
-                        <Link to={`/edit-post/${post._id}`} className="action-btn edit-btn" title="Modifier">
-                          <Edit size={16} />
-                        </Link>
-                        <button 
-                          className="action-btn delete-btn" 
-                          title="Supprimer"
-                          onClick={() => handleDeletePost(post._id)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      {user && post.userId && user._id === post.userId._id && (
+                        <div className="card-quick-actions">
+                          <Link to={`/edit-post/${post._id}`} className="action-btn edit-btn" title="Modifier">
+                            <Edit size={16} />
+                          </Link>
+                          <button 
+                            className="action-btn delete-btn" 
+                            title="Supprimer"
+                            onClick={() => handleDeletePost(post._id)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {post.tags && post.tags.length > 0 && (

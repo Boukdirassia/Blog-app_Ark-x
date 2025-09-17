@@ -1,0 +1,88 @@
+/* Modern social interaction buttons */
+.post-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: #65676B;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.post-action-btn:hover {
+  background-color: #F2F2F2;
+}
+
+.post-action-btn.active {
+  color: #6366F1;
+}
+
+.post-action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Like button styles */
+.post-action-btn .liked {
+  color: #6366F1;
+  fill: #6366F1;
+}
+
+.post-action-btn.active {
+  color: #6366F1;
+}
+
+.post-action-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* Bookmark button styles */
+.post-action-btn .bookmarked {
+  color: #6366F1;
+}
+
+.post-action-btn.bookmarked {
+  color: #6366F1;
+}
+
+.post-action-btn:hover {
+  background-color: #F2F2F2;
+}
+
+.post-action-btn.disabled,
+.post-action-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.social-buttons-container {
+  display: flex;
+  margin-top: 1rem;
+  align-items: center;
+}
+
+.social-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-right: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.social-stats span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.social-stats i {
+  font-size: 0.9rem;
+}

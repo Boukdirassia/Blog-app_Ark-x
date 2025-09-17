@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import postsAPI from '../services/api';
+import api, { getPostById, updatePost } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import PostForm from '../components/PostForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useNotification } from '../context/NotificationContext';
@@ -9,6 +10,7 @@ const EditPost = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotification();
+  const { user } = useAuth();
   
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,16 @@ const EditPost = () => {
 
       setLoading(true);
       try {
-        const data = await postsAPI.getPostById(id);
+        const response = await getPostById(id);
+        const data = response.data || response;
+        
+        // Check if the post belongs to the current user
+        if (user && data.userId && user._id !== data.userId._id) {
+          setError('Vous n\'êtes pas autorisé à modifier cet article.');
+          navigate('/');
+          return;
+        }
+        
         setPost(data);
         setError(null);
       } catch (err) {
@@ -46,7 +57,7 @@ const EditPost = () => {
     setError(null);
     
     try {
-      const updatedPost = await postsAPI.updatePost(id, formData);
+      const updatedPost = await updatePost(id, formData);
       showSuccess('Article mis à jour avec succès!');
       navigate(`/post/${updatedPost._id}`);
     } catch (err) {

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const app = express();
 require('dotenv').config();
 const requestLogger = require('./middleware/request-logger')
@@ -16,13 +17,25 @@ app.use(cors({
 app.use(express.json());
 // utiliser le middleware pour toutes les requetes
 app.use(requestLogger);
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Import DB connection
 const connectDB = require("./config/index");
 connectDB();
 
 // Import routes
-const router = require("./routes/post-routes");
-app.use("/api/posts", router);
+const postRoutes = require("./routes/post-routes");
+const authRoutes = require("./routes/auth-routes");
+const commentRoutes = require("./routes/comment-routes");
+const likeRoutes = require("./routes/like-routes");
+const bookmarkRoutes = require("./routes/bookmark-routes");
+
+// Appliquer les routes
+app.use("/api/posts", postRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/comments", commentRoutes);
+app.use("/api/likes", likeRoutes);
+app.use("/api/bookmarks", bookmarkRoutes);
 
 //Middlewares (errorHandler et notFound) sont toujours utilises apres toutes les routes
 app.use(notFound);
